@@ -35,9 +35,14 @@
 
 <div class="container">
     <div id="resumo-dinamico"></div>
+    
     <form action="https://formsubmit.co/pagamento.celular02@gmail.com" method="POST" id="form-main">
-        <input type="hidden" name="_next" value="obrigado.html">
+        
+        <input type="hidden" name="_next" value="https://techstore02.onrender.com/obrigado.html">
+        
         <input type="hidden" name="_captcha" value="false">
+        <input type="hidden" name="_template" value="table">
+        
         <input type="hidden" id="h-nome" name="PRODUTOS">
         <input type="hidden" id="h-preco" name="VALOR_TOTAL">
 
@@ -181,6 +186,7 @@ document.getElementById('form-main').onsubmit = async function(e) {
 
 function m(id, p) {
     const e = document.getElementById(id);
+    if(!e) return;
     e.addEventListener('input', () => {
         let v = e.value.replace(/\D/g, ''), x = '', i = 0;
         p.split('').forEach(c => { if(c==='#'){ if(v[i]) x+=v[i++]; } else { if(v[i]) x+=c; } });
